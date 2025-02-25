@@ -221,7 +221,7 @@ def api_logout():
 def get_retry_session():
     session = requests.Session()
     retry = Retry(
-        total=3,  # 总共尝试3次
+        total=10,  # 总共尝试5次
         backoff_factor=1,  # 每次重试的等待时间递增因子
         status_forcelist=[500, 502, 503, 504],  # 针对这些HTTP状态码重试
         allowed_methods=["GET", "POST"]  # 只针对GET和POST方法进行重试
@@ -300,8 +300,6 @@ def get_playlist_detail():
         })
 
 
-# 播放记录保存接口（修改后）
-from sqlalchemy import text  # 添加导入
 
 
 # 修改后的保存播放记录接口
