@@ -117,8 +117,8 @@ class PlayLog(db.Model):
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'))
     song_id = db.Column(db.BigInteger)
     song_name = db.Column(db.String(255))
-    current_time = db.Column(db.Float)  # 当前播放位置（秒）
-    duration = db.Column(db.Float)      # 歌曲总时长（秒）
+    current_time = db.Column('current_position', db.Float)  # 映射到current_position列
+    duration = db.Column('song_duration', db.Float)         # 映射到song_duration列
     played_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # 首次运行时创建数据表
@@ -300,16 +300,14 @@ def get_playlist_detail():
         })
 
 
-# 播放记录保存接口
+# 播放记录保存接口（修改后）
 @app.route('/api/play_log', methods=['POST'])
 def save_play_log():
     try:
         data = request.json
-        cookies = request.cookies
-        user_id = get_user_id_from_cookies(cookies)  # 需要实现获取用户ID的方法
-
+        # 直接使用请求体中的用户ID（生产环境建议使用认证方式）
         play_log = PlayLog(
-            user_id=user_id,
+            user_id=data['user_id'],
             song_id=data['song_id'],
             song_name=data.get('song_name'),
             current_time=data['current_time'],
@@ -321,16 +319,18 @@ def save_play_log():
         db.session.commit()
 
         return jsonify({"code": 200, "msg": "播放记录保存成功"})
+    except KeyError as e:
+        return jsonify({"code": 400, "msg": f"缺少必要参数: {str(e)}"})
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e)})
 
-
-# 获取播放历史接口
+# 获取播放历史接口（修改后）
 @app.route('/api/play_logs', methods=['GET'])
 def get_play_logs():
     try:
-        cookies = request.cookies
-        user_id = get_user_id_from_cookies(cookies)
+        user_id = request.args.get('user_id')  # 通过查询参数获取用户ID
+        if not user_id:
+            return jsonify({"code": 400, "msg": "缺少user_id参数"})
 
         logs = PlayLog.query.filter_by(user_id=user_id) \
             .order_by(PlayLog.played_at.desc()) \
@@ -351,6 +351,7 @@ def get_play_logs():
         })
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e)})
+
 
 if __name__ == '__main__':
     app.run('0.0.0.0',debug=True, port=5000)
