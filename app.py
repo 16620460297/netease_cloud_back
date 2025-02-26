@@ -113,10 +113,12 @@ class Playlist(db.Model):
 # 播放记录模型：记录用户播放的歌曲和播放时间
 class PlayLog(db.Model):
     __tablename__ = 'play_logs'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'))
-    song_id = db.Column(db.BigInteger)  # 歌曲 ID（可按需扩展）
+    song_id = db.Column(db.BigInteger)
     song_name = db.Column(db.String(255))
+    current_time = db.Column(db.Float)  # 当前播放位置（秒）
+    duration = db.Column(db.Float)      # 歌曲总时长（秒）
     played_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # 首次运行时创建数据表
@@ -296,6 +298,59 @@ def get_playlist_detail():
             "msg": "服务器处理异常",
             "error_detail": str(e)  # 生产环境建议隐藏详细错误信息
         })
+
+
+# 播放记录保存接口
+@app.route('/api/play_log', methods=['POST'])
+def save_play_log():
+    try:
+        data = request.json
+        cookies = request.cookies
+        user_id = get_user_id_from_cookies(cookies)  # 需要实现获取用户ID的方法
+
+        play_log = PlayLog(
+            user_id=user_id,
+            song_id=data['song_id'],
+            song_name=data.get('song_name'),
+            current_time=data['current_time'],
+            duration=data['duration'],
+            played_at=datetime.utcnow()
+        )
+
+        db.session.add(play_log)
+        db.session.commit()
+
+        return jsonify({"code": 200, "msg": "播放记录保存成功"})
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e)})
+
+
+# 获取播放历史接口
+@app.route('/api/play_logs', methods=['GET'])
+def get_play_logs():
+    try:
+        cookies = request.cookies
+        user_id = get_user_id_from_cookies(cookies)
+
+        logs = PlayLog.query.filter_by(user_id=user_id) \
+            .order_by(PlayLog.played_at.desc()) \
+            .limit(100) \
+            .all()
+
+        return jsonify({
+            "code": 200,
+            "data": [
+                {
+                    "song_id": log.song_id,
+                    "song_name": log.song_name,
+                    "current_time": log.current_time,
+                    "duration": log.duration,
+                    "played_at": log.played_at.isoformat()
+                } for log in logs
+            ]
+        })
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e)})
 
 if __name__ == '__main__':
     app.run('0.0.0.0',debug=True, port=5000)
