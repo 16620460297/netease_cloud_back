@@ -3,7 +3,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json, random, execjs, requests, qrcode, io, base64
-
+from sqlalchemy.dialects.mysql import LONGTEXT
 # 基础配置
 BASE_URL = "https://music.163.com"
 USER_AGENTS = [
@@ -108,7 +108,7 @@ class Playlist(db.Model):
     __tablename__ = 'playlists'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), unique=True)  # 每个用户一个唯一的歌单记录
-    playlist_data = db.Column(db.Text)  # 歌单数据 JSON 字符串
+    playlist_data = db.Column(LONGTEXT)  # 歌单数据 JSON 字符串
     update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 # 播放记录模型：记录用户播放的歌曲和播放时间
