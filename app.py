@@ -301,57 +301,75 @@ def get_playlist_detail():
 
 
 # 播放记录保存接口（修改后）
+from sqlalchemy import text  # 添加导入
+
+
+# 修改后的保存播放记录接口
+from sqlalchemy import text  # 添加导入
+
+
 @app.route('/api/play_log', methods=['POST'])
 def save_play_log():
     try:
         data = request.json
-        # 直接使用请求体中的用户ID（生产环境建议使用认证方式）
-        play_log = PlayLog(
-            user_id=data['user_id'],
-            song_id=data['song_id'],
-            song_name=data.get('song_name'),
-            current_time=data['current_time'],
-            duration=data['duration'],
-            played_at=datetime.utcnow()
-        )
+        # 修改参数占位符格式为 :param 形式
+        sql = text("""
+        INSERT INTO play_logs 
+        (user_id, song_id, song_name, current_position, song_duration, played_at)
+        VALUES (:user_id, :song_id, :song_name, :current_time, :duration, NOW())
+        ON DUPLICATE KEY UPDATE 
+        current_position = VALUES(current_position),
+        song_duration = VALUES(song_duration),
+        played_at = NOW(),
+        update_time = NOW()
+        """)
 
-        db.session.add(play_log)
+        db.session.execute(sql, {
+            'user_id': data['user_id'],
+            'song_id': data['song_id'],
+            'song_name': data.get('song_name', ''),
+            'current_time': data['current_time'],
+            'duration': data['duration']
+        })
         db.session.commit()
 
-        return jsonify({"code": 200, "msg": "播放记录保存成功"})
-    except KeyError as e:
-        return jsonify({"code": 400, "msg": f"缺少必要参数: {str(e)}"})
+        return jsonify({"code": 200, "msg": "播放记录已保存"})
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e)})
 
 # 获取播放历史接口（修改后）
+# 修改获取播放记录接口
 @app.route('/api/play_logs', methods=['GET'])
 def get_play_logs():
     try:
-        user_id = request.args.get('user_id')  # 通过查询参数获取用户ID
+        user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({"code": 400, "msg": "缺少user_id参数"})
 
-        logs = PlayLog.query.filter_by(user_id=user_id) \
-            .order_by(PlayLog.played_at.desc()) \
-            .limit(100) \
-            .all()
+        sql = text("""
+            SELECT 
+                song_id,
+                song_name,
+                CASE 
+                    WHEN current_position >= song_duration * 0.9 THEN 0
+                    ELSE current_position
+                END AS adjusted_current_time,
+                song_duration,
+                played_at
+            FROM play_logs
+            WHERE user_id = :user_id
+            ORDER BY played_at DESC
+            LIMIT 100
+            """)
 
-        return jsonify({
-            "code": 200,
-            "data": [
-                {
-                    "song_id": log.song_id,
-                    "song_name": log.song_name,
-                    "current_time": log.current_time,
-                    "duration": log.duration,
-                    "played_at": log.played_at.isoformat()
-                } for log in logs
-            ]
-        })
+        result = db.session.execute(sql, {'user_id': user_id})
+        # 修正：使用 row._asdict() 或 row._mapping 转换行对象
+        # logs = [row._asdict() for row in result]  # 适用于 SQLAlchemy <1.4
+        # 或
+        logs = [dict(row._mapping) for row in result]  # 适用于 SQLAlchemy >=1.4
+        return jsonify({"code": 200, "data": logs})
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e)})
-
 
 if __name__ == '__main__':
     app.run('0.0.0.0',debug=True, port=5000)
