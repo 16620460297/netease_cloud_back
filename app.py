@@ -218,22 +218,6 @@ def api_logout():
         return jsonify({"code": 200, "msg": "注销成功"})
     return jsonify({"code": 500, "msg": "注销失败"})
 
-
-# 配置重试策略
-def get_retry_session():
-    session = requests.Session()
-    retry = Retry(
-        total=3,  # 总共尝试3次
-        backoff_factor=1,  # 每次重试的等待时间递增因子
-        status_forcelist=[500, 502, 503, 504],  # 针对这些HTTP状态码重试
-        method_whitelist=["GET", "POST"]  # 只针对GET和POST方法进行重试
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
-
-
 # 配置重试策略
 def get_retry_session():
     session = requests.Session()
