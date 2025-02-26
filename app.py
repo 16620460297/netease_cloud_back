@@ -281,7 +281,9 @@ def get_playlist_detail():
 
         data = response.json()
         print(data)
-
+        # 检查返回的json数据是否包含result字段
+        if 'result' not in data:
+            raise Exception("返回数据缺少 'result' 字段")
         # 优化后的数据结构处理
         playlist = data['result']
         processed = {
