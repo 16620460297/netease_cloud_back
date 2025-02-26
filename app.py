@@ -10,40 +10,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15"
 ]
-# 代理列表
-proxies_list = [
-    {'http': 'http://8.220.204.215:8008'},
-    {'http': 'http://154.203.132.49:8080'},
-    {'http': 'http://180.103.181.10:80'},
-    {'http': 'http://101.200.75.55:80'},
-    {'http': 'http://39.102.211.64:8008'},
-    {'http': 'http://116.62.60.22:3128'},
-    {'http': 'http://101.6.68.101:7893'},
-    {'http': 'http://47.119.164.33:8081'},
-    {'http': 'http://8.130.54.67:4000'},
-    {'http': 'http://111.19.228.100:800'},
-    {'http': 'http://47.108.159.113:9098'},
-    {'http': 'http://8.148.20.126:3128'},
-    {'http': 'http://51.159.159.73:80'},
-    {'http': 'http://72.10.160.90:8353'},
-    {'http': 'http://165.16.30.225:1981'},
-    {'http': 'http://72.10.160.93:4499'},
-    {'http': 'http://165.225.72.38:10025'},
-    {'http': 'http://72.10.160.174:26361'},
-    {'http': 'http://155.94.241.130:3128'},
-    {'http': 'http://83.68.136.236:80'},
-    {'http': 'http://35.178.104.4:80'},
-    {'http': 'http://185.216.27.145:80'},
-    {'http': 'http://72.10.164.178:27487'},
-    {'http': 'http://67.43.227.227:19383'}
-]
 
-
-def get_random_proxy():
-    """
-    随机从代理列表中选择一个代理
-    """
-    return proxies_list[random.randint(0, len(proxies_list) - 1)]
 def get_headers():
     return {
         "Host": "music.163.com",
