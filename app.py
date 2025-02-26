@@ -219,4 +219,4 @@ def api_logout():
     return jsonify({"code": 500, "msg": "注销失败"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run('0.0.0.0',debug=True, port=5000)
