@@ -222,43 +222,70 @@ def api_logout():
 @app.route('/api/playlist/detail', methods=['GET'])
 def get_playlist_detail():
     playlist_id = request.args.get('id')
-    print(playlist_id)
     if not playlist_id:
         return jsonify({"code": 400, "msg": "缺少歌单ID参数"})
+
+    # 获取必要cookie参数
+    required_cookies = {
+        'MUSIC_U': request.cookies.get('MUSIC_U'),
+        '__csrf': request.cookies.get('__csrf')
+    }
+    if not all(required_cookies.values()):
+        return jsonify({
+            "code": 401,
+            "msg": "认证失败，请确保已登录"
+        })
 
     try:
         url = f"{BASE_URL}/api/playlist/detail?id={playlist_id}"
         print(url)
-        response = requests.get(url, headers=get_headers())
+        headers = get_headers()  # 包含UA等必要头信息
+        # 发送带cookie的请求
+        response = requests.get(
+            url,
+            headers=headers,
+            cookies=required_cookies
+        )
 
+        # 强制校验HTTP状态码
         if response.status_code != 200:
-            return jsonify({"code": 500, "msg": "网易云接口请求失败"})
+            raise Exception(f"接口返回错误状态码: {response.status_code}")
 
         data = response.json()
+        print(data)
 
-        # 新增数据结构校验
-        if data.get('code') != 200 or not data.get('playlist'):
-            return jsonify({"code": 404, "msg": "歌单不存在或无法访问"})
-
-        # 安全获取嵌套字段
+        # 优化后的数据结构处理
+        playlist = data['result']
         processed = {
-            "id": data['playlist'].get('id'),
-            "name": data['playlist'].get('name', '未知歌单'),
-            "coverImgUrl": data['playlist'].get('coverImgUrl', ''),
-            "tracks": [{
-                "id": t.get('id'),
-                "name": t.get('name', '未知曲目'),
-                "duration": t.get('dt', 0),
-                "artists": [a.get('name', '') for a in t.get('ar', [])],
-                "album": t.get('al', {}).get('name', ''),
-                "cover": t.get('al', {}).get('picUrl', '')
-            } for t in data['playlist'].get('tracks', [])]
+            "playlist_id": playlist.get('id'),
+            "name": playlist.get('name', '未知歌单'),
+            "tracks": [
+                {
+                    "sort_id": idx + 1,
+                    "picurl": t.get('album', {}).get('picUrl') or t.get('album', {}).get('blurPicUrl', ''),
+                    "song_id": t.get('id'),
+                    "title": t.get('name', '未知曲目'),
+                    "duration": f"{t.get('duration', 0) // 1000 // 60:02d}:{t.get('duration', 0) // 1000 % 60:02d}",
+                    "artists": ", ".join(a['name'] for a in t.get('artists', []) if a.get('name')),  # 修复点
+                    "album": t.get('album', {}).get('name', '')
+                }
+
+                for idx, t in enumerate(playlist.get('tracks', []))
+            ]
         }
-        return jsonify({"code": 200, "data": processed})
+
+        return jsonify({
+            "code": 200,
+            "data": processed
+        })
 
     except Exception as e:
         print(f"[ERROR] 获取歌单详情异常: {str(e)}")
-        return jsonify({"code": 500, "msg": "服务器处理异常"})
+        return jsonify({
+            "code": 500,
+            "msg": "服务器处理异常",
+            "error_detail": str(e)  # 生产环境建议隐藏详细错误信息
+        })
 
 
 if __name__ == '__main__':
