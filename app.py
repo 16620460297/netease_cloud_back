@@ -12,7 +12,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15"
 ]
-
 def get_headers():
     return {
         "Host": "music.163.com",
@@ -20,7 +19,6 @@ def get_headers():
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": random.choice(USER_AGENTS),
     }
-
 def encrypted_request(data):
     """执行参数加密"""
     with open("main.js", "r", encoding="utf-8") as f:
@@ -89,7 +87,6 @@ def check_login_status_once(unikey):
 
 app = Flask(__name__)
 CORS(app)
-
 # 配置 MySQL 数据库（请根据实际情况修改用户名、密码、主机和数据库名）
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:MO520MING@localhost/netease_cloud?charset=utf8mb4'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
