@@ -72,7 +72,18 @@ def check_login_status_once(unikey):
         "csrf_token": ""
     }
     response = requests.post(url, data=encrypted_request(data), headers=get_headers())
-    return response.json()
+    result = response.json()
+    # 登录成功时处理cookie
+    if result.get("code") == 803:  # 803表示登录成功
+        cookies = response.cookies.get_dict()
+        print("[登录成功] Cookies:", cookies)  # 打印cookie
+        result["cookies"] = cookies  # 将cookie加入返回结果
+    # 在返回结果前调用
+    if result.get("code") == 803:
+        profile = get_user_profile(cookies)
+        print("[用户信息]", profile)
+        result["profile"] = profile
+    return result
 
 app = Flask(__name__)
 CORS(app)  # 跨域全开，允许所有来源的请求
@@ -105,9 +116,22 @@ def api_check_login():
     if not unikey:
         return jsonify({"code": 400, "msg": "缺少 unikey 参数"})
     result = check_login_status_once(unikey)
+    print(result)
     return jsonify(result)
 
 # 此处可增加其他接口，例如用户歌单等
+
+# 在登录成功后可添加用户信息获取逻辑
+def get_user_profile(cookies):
+    url = f"{BASE_URL}/weapi/w/nuser/account/get"
+    response = requests.post(url,
+        data=encrypted_request({}),
+        headers=get_headers(),
+        cookies=cookies
+    )
+    return response.json()
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
