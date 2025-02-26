@@ -6,8 +6,8 @@ import requests
 import qrcode
 import io
 import base64
-from flask import Flask, jsonify, request
-from flask_cors import CORS  # 导入 flask-cors
+from flask import Flask, jsonify, request, make_response
+from flask_cors import CORS
 
 # 基础配置
 BASE_URL = "https://music.163.com"
@@ -63,6 +63,15 @@ def generate_qrcode_image(unikey):
     img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return img_str
 
+def get_user_profile(cookies):
+    url = f"{BASE_URL}/weapi/w/nuser/account/get"
+    response = requests.post(url,
+        data=encrypted_request({}),
+        headers=get_headers(),
+        cookies=cookies
+    )
+    return response.json()
+
 def check_login_status_once(unikey):
     """单次查询登录状态"""
     url = f"{BASE_URL}/weapi/login/qrcode/client/login"
@@ -73,20 +82,17 @@ def check_login_status_once(unikey):
     }
     response = requests.post(url, data=encrypted_request(data), headers=get_headers())
     result = response.json()
-    # 登录成功时处理cookie
     if result.get("code") == 803:  # 803表示登录成功
         cookies = response.cookies.get_dict()
-        print("[登录成功] Cookies:", cookies)  # 打印cookie
-        result["cookies"] = cookies  # 将cookie加入返回结果
-    # 在返回结果前调用
-    if result.get("code") == 803:
+        print("[登录成功] Cookies:", cookies)
+        result["cookies"] = cookies
         profile = get_user_profile(cookies)
         print("[用户信息]", profile)
         result["profile"] = profile
     return result
 
 app = Flask(__name__)
-CORS(app)  # 跨域全开，允许所有来源的请求
+CORS(app)
 
 @app.route('/api/qrcode', methods=['GET'])
 def api_qrcode():
@@ -119,19 +125,20 @@ def api_check_login():
     print(result)
     return jsonify(result)
 
-# 此处可增加其他接口，例如用户歌单等
-
-# 在登录成功后可添加用户信息获取逻辑
-def get_user_profile(cookies):
-    url = f"{BASE_URL}/weapi/w/nuser/account/get"
-    response = requests.post(url,
-        data=encrypted_request({}),
-        headers=get_headers(),
-        cookies=cookies
-    )
-    return response.json()
-
-
+@app.route('/api/logout', methods=['GET'])
+def api_logout():
+    """
+    退出登录接口
+    调用网易云音乐的注销接口并返回结果
+    """
+    # 假设前端会把登录时存储的 cookie 信息（或 token）传递到后端
+    # 这里简单地从请求中获取 cookies
+    cookies = request.cookies
+    url = f"{BASE_URL}/api/logout"
+    response = requests.get(url, headers=get_headers(), cookies=cookies)
+    if response.status_code == 200:
+        return jsonify({"code": 200, "msg": "注销成功"})
+    return jsonify({"code": 500, "msg": "注销失败"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
