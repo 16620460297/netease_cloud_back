@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json, random, execjs, requests, qrcode, io, base64
 from sqlalchemy.dialects.mysql import LONGTEXT
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 # 基础配置
 BASE_URL = "https://music.163.com"
 USER_AGENTS = [
@@ -149,16 +151,13 @@ def api_check_login():
     if not unikey:
         return jsonify({"code": 400, "msg": "缺少 unikey 参数"})
     result = check_login_status_once(unikey)
-    print(result)
     if result.get("code") == 803:
         cookies = result.get("cookies")
         profile = result.get("profile")
-        # 注意：用户 ID 存放在 profile['profile'] 中
         user_profile = profile.get("profile", {})
         user_id = user_profile.get("userId")
         if not user_id:
             return jsonify({"code": 500, "msg": "未能获取用户ID"})
-        # 保存到数据库
         user = User.query.get(user_id)
         if not user:
             user = User(
@@ -174,6 +173,7 @@ def api_check_login():
             user.cookies = json.dumps(cookies)
         db.session.commit()
     return jsonify(result)
+
 
 
 @app.route('/api/save_playlist', methods=['GET'])
@@ -219,6 +219,36 @@ def api_logout():
     return jsonify({"code": 500, "msg": "注销失败"})
 
 
+# 配置重试策略
+def get_retry_session():
+    session = requests.Session()
+    retry = Retry(
+        total=3,  # 总共尝试3次
+        backoff_factor=1,  # 每次重试的等待时间递增因子
+        status_forcelist=[500, 502, 503, 504],  # 针对这些HTTP状态码重试
+        method_whitelist=["GET", "POST"]  # 只针对GET和POST方法进行重试
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+# 配置重试策略
+def get_retry_session():
+    session = requests.Session()
+    retry = Retry(
+        total=3,  # 总共尝试3次
+        backoff_factor=1,  # 每次重试的等待时间递增因子
+        status_forcelist=[500, 502, 503, 504],  # 针对这些HTTP状态码重试
+        allowed_methods=["GET", "POST"]  # 只针对GET和POST方法进行重试
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
 @app.route('/api/playlist/detail', methods=['GET'])
 def get_playlist_detail():
     playlist_id = request.args.get('id')
@@ -240,12 +270,10 @@ def get_playlist_detail():
         url = f"{BASE_URL}/api/playlist/detail?id={playlist_id}"
         print(url)
         headers = get_headers()  # 包含UA等必要头信息
-        # 发送带cookie的请求
-        response = requests.get(
-            url,
-            headers=headers,
-            cookies=required_cookies
-        )
+
+        # 使用自定义的重试机制发送请求
+        session = get_retry_session()
+        response = session.get(url, headers=headers, cookies=required_cookies)
 
         # 强制校验HTTP状态码
         if response.status_code != 200:
@@ -269,7 +297,6 @@ def get_playlist_detail():
                     "artists": ", ".join(a['name'] for a in t.get('artists', []) if a.get('name')),  # 修复点
                     "album": t.get('album', {}).get('name', '')
                 }
-
                 for idx, t in enumerate(playlist.get('tracks', []))
             ]
         }
@@ -286,7 +313,6 @@ def get_playlist_detail():
             "msg": "服务器处理异常",
             "error_detail": str(e)  # 生产环境建议隐藏详细错误信息
         })
-
 
 if __name__ == '__main__':
     app.run('0.0.0.0',debug=True, port=5000)
