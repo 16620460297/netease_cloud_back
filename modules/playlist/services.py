@@ -114,3 +114,27 @@ def get_playlist_detail():
         return jsonify({"code": 200, "data": processed})
     except Exception as e:
         return jsonify({"code": 500, "msg": "服务器处理异常", "error_detail": str(e)})
+
+
+# 在 playlist_bp 或其它合适的蓝图里
+
+def get_single_song_detail():
+    song_id = request.args.get('song_id')
+    if not song_id:
+        return jsonify({"code": 400, "msg": "缺少 song_id"})
+
+    # 构建网易云的单曲详情请求
+    url = f"https://music.163.com/api/song/detail?ids=[{song_id}]"
+    try:
+        resp = requests.get(url)  # 这里可根据你项目需求，添加 headers/cookies 等
+        if resp.status_code != 200:
+            return jsonify({"code": 500, "msg": "获取单曲详情失败，状态码不为 200"})
+        data = resp.json()
+        # data 结构示例：{"songs":[{"id":..., "name":"...", ...}], "code":200}
+        songs = data.get('songs', [])
+        if not songs:
+            return jsonify({"code": 404, "msg": "歌曲信息为空"})
+        song_info = songs[0]
+        return jsonify({"code": 200, "data": song_info})
+    except Exception as e:
+        return jsonify({"code": 500, "msg": "获取单曲详情出现异常", "error": str(e)})
