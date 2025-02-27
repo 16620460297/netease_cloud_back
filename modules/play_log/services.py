@@ -110,7 +110,7 @@ def flush_redis_play_logs(threshold_seconds=30):
 
             # 解码 Redis 返回的 bytes -> str (Python3)
             # data 是一个 dict, 需要对内部的 key/value 都进行 decode
-            decoded = {k.decode('utf-8'): v.decode('utf-8') for k, v in data.items()}
+            decoded = {k: v for k, v in data.items()}
 
             last_update_str = decoded.get("last_update", "0")
             try:

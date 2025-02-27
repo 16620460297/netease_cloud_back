@@ -1,11 +1,14 @@
 import logging
+from sched import scheduler
+
 from flask import Flask
 from flask_cors import CORS
-from utils.db import db
 
+from modules.play_log.services import flush_redis_play_logs
+from utils.db import db
+from flask_apscheduler import APScheduler
 # 引入你自定义的 Handler
 from utils.my_sql_handler   import MySQLLogHandler
-
 def create_app():
     app = Flask(__name__)
     CORS(app)
@@ -24,27 +27,38 @@ def create_app():
         app.register_blueprint(playlist_bp)
         app.register_blueprint(play_log_bp)
 
-        # ---- 日志部分开始 ----
-        # 获取 Flask 自带的 logger
+        # 日志部分配置
         flask_logger = app.logger
-
-        # 创建自定义的 MySQL Handler
         mysql_handler = MySQLLogHandler()
-
-        # 你也可以在这里配置一个基础 Formatter
         formatter = logging.Formatter(
             '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
         )
         mysql_handler.setFormatter(formatter)
-
-        # 给 logger 加上这个 handler
         flask_logger.addHandler(mysql_handler)
-
-        # 如果想把日志级别调低一点，一般 DEBUG 或 INFO
         flask_logger.setLevel(logging.DEBUG)
-        # ---- 日志部分结束 ----
+
+        # 定时任务部分
+        scheduler = APScheduler()
+        scheduler.init_app(app)
+        scheduler.start()
+
+        # 定义并添加定时任务
+        def flush_redis_play_logs_job():
+            with app.app_context():
+                flush_redis_play_logs()
+
+        scheduler.add_job(
+            id='flush_redis_play_logs_task',
+            func=flush_redis_play_logs_job,
+            trigger='interval',
+            seconds=60
+        )
 
     return app
+
+# 移除原来的装饰器定义
+def cron_flush_redis_play_logs():
+    flush_redis_play_logs()
 
 if __name__ == '__main__':
     app = create_app()
