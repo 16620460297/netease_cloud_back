@@ -61,5 +61,6 @@ def cron_flush_redis_play_logs():
     flush_redis_play_logs()
 
 if __name__ == '__main__':
+    # 播放器~启动~
     app = create_app()
     app.run('0.0.0.0', debug=True, port=5000)
